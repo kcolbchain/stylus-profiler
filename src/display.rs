@@ -44,7 +44,8 @@ pub fn print_analysis(analysis: &WasmAnalysis) {
     sorted.sort_by(|a, b| b.body_size.cmp(&a.body_size));
 
     for (i, func) in sorted.iter().take(15).enumerate() {
-        let name = func.name.as_deref().unwrap_or(&format!("func_{}", func.index));
+        let default_name = format!("func_{}", func.index);
+        let name = func.name.as_deref().unwrap_or(&default_name);
         let gas_est = gas::estimate_gas(func);
         println!("  {:>5}  {:>8}  {:>6}  {:>8}  {}",
             i + 1,
@@ -67,7 +68,8 @@ pub fn print_size_breakdown(analysis: &WasmAnalysis, top: usize) {
     let total = analysis.total_code_size();
 
     for (i, func) in sorted.iter().take(top).enumerate() {
-        let name = func.name.as_deref().unwrap_or(&format!("func_{}", func.index));
+        let default_name = format!("func_{}", func.index);
+        let name = func.name.as_deref().unwrap_or(&default_name);
         let pct = if total > 0 { func.body_size as f64 / total as f64 * 100.0 } else { 0.0 };
         let bar_len = (pct / 2.0) as usize;
         let bar = "█".repeat(bar_len);
