@@ -1,4 +1,5 @@
 # stylus-profiler
+[![repo](https://img.shields.io/badge/repo-stylus-profiler-blue)](https://github.com/kcolbchain/stylus-profiler)
 
 WASM binary analyzer for Arbitrum Stylus contracts. By [kcolbchain](https://kcolbchain.com) (est. 2015).
 
