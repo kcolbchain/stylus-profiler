@@ -21,6 +21,9 @@ enum Commands {
     Analyze {
         /// Path to the WASM file
         wasm: PathBuf,
+        /// Output format: table or json
+        #[arg(long, default_value = "table")]
+        format: String,
     },
     /// Size breakdown by function and module
     Size {
@@ -48,11 +51,19 @@ fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Analyze { wasm } => {
-            println!("{}", "stylus-profiler".bold().cyan());
-            println!("{}", "─".repeat(50).dimmed());
+        Commands::Analyze { wasm, format } => {
             let analysis = analyzer::analyze(&wasm)?;
-            display::print_analysis(&analysis);
+            match format.as_str() {
+                "json" => {
+                    let report = analysis.to_report();
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                }
+                _ => {
+                    println!("{}", "stylus-profiler".bold().cyan());
+                    println!("{}", "─".repeat(50).dimmed());
+                    display::print_analysis(&analysis);
+                }
+            }
         }
         Commands::Size { wasm, top } => {
             let analysis = analyzer::analyze(&wasm)?;
