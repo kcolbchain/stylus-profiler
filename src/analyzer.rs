@@ -1,8 +1,10 @@
+use crate::gas;
 use eyre::{eyre, Result};
+use serde::Serialize;
 use std::path::Path;
 use wasmparser::{Parser, Payload};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FunctionInfo {
     pub index: u32,
     pub name: Option<String>,
@@ -11,7 +13,7 @@ pub struct FunctionInfo {
     pub instruction_count: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct WasmAnalysis {
     pub file_size: usize,
     pub functions: Vec<FunctionInfo>,
@@ -21,9 +23,90 @@ pub struct WasmAnalysis {
     pub table_count: u32,
     pub custom_sections: Vec<(String, usize)>,
     pub data_segment_size: usize,
+    pub schema_version: String,
+    pub binary_size_bytes: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnalysisReport {
+    pub schema_version: String,
+    pub binary_size_bytes: usize,
+    pub total_code_size: usize,
+    pub total_functions: usize,
+    pub functions: Vec<FunctionReport>,
+    pub sections: Vec<SectionReport>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FunctionReport {
+    pub index: u32,
+    pub name: String,
+    pub body_size: usize,
+    pub instruction_count: usize,
+    pub estimated_gas: u64,
+    pub suggestion: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SectionReport {
+    pub name: String,
+    pub size_bytes: usize,
+    pub kind: String,
 }
 
 impl WasmAnalysis {
+    pub fn to_report(&self) -> AnalysisReport {
+        let mut sorted = self.functions.clone();
+        sorted.sort_by(|a, b| b.body_size.cmp(&a.body_size));
+
+        let functions: Vec<FunctionReport> = sorted
+            .iter()
+            .map(|f| {
+                let default_name = format!("func_{}", f.index);
+                FunctionReport {
+                    index: f.index,
+                    name: f.name.clone().unwrap_or(default_name),
+                    body_size: f.body_size,
+                    instruction_count: f.instruction_count,
+                    estimated_gas: gas::estimate_gas(f),
+                    suggestion: if f.body_size > 1024 {
+                        Some(format!("large function ({} bytes), consider splitting", f.body_size))
+                    } else {
+                        None
+                    },
+                }
+            })
+            .collect();
+
+        let mut sections = Vec::new();
+        sections.push(SectionReport {
+            name: "code".into(),
+            size_bytes: self.total_code_size(),
+            kind: "code".into(),
+        });
+        sections.push(SectionReport {
+            name: "data".into(),
+            size_bytes: self.data_segment_size,
+            kind: "data".into(),
+        });
+        for (name, sz) in &self.custom_sections {
+            sections.push(SectionReport {
+                name: name.clone(),
+                size_bytes: *sz,
+                kind: "custom".into(),
+            });
+        }
+
+        AnalysisReport {
+            schema_version: self.schema_version.clone(),
+            binary_size_bytes: self.binary_size_bytes,
+            total_code_size: self.total_code_size(),
+            total_functions: self.total_functions(),
+            functions,
+            sections,
+        }
+    }
+
     pub fn total_code_size(&self) -> usize {
         self.functions.iter().map(|f| f.body_size).sum()
     }
@@ -124,5 +207,7 @@ pub fn analyze(path: &Path) -> Result<WasmAnalysis> {
         table_count,
         custom_sections,
         data_segment_size,
+        schema_version: String::from("1.0.0"),
+        binary_size_bytes: data.len(),
     })
 }
