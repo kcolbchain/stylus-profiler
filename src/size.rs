@@ -26,6 +26,7 @@ pub fn check_limits(file_size: usize) -> SizeLimitCheck {
     }
 }
 
+#[allow(dead_code)]
 pub struct SizeLimitCheck {
     pub uncompressed_size: usize,
     pub estimated_compressed: usize,
@@ -34,3 +35,31 @@ pub struct SizeLimitCheck {
     pub headroom_uncompressed: usize,
     pub headroom_compressed: usize,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normal_contract() {
+        let check = check_limits(10 * 1024); // 10KB
+        assert!(check.uncompressed_ok);
+        assert!(check.compressed_ok);
+    }
+
+    #[test]
+    fn test_oversized_uncompressed_contract() {
+        let check = check_limits(130 * 1024); // 130KB (>128KB)
+        assert!(!check.uncompressed_ok);
+        // It might be compressed OK depending on the 4x estimate, but uncompressed fails
+    }
+
+    #[test]
+    fn test_oversized_compressed_contract() {
+        // If file is 100KB, estimated compressed is 25KB (>24KB)
+        let check = check_limits(100 * 1024);
+        assert!(check.uncompressed_ok);
+        assert!(!check.compressed_ok);
+    }
+}
+
