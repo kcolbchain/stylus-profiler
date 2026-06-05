@@ -7,7 +7,7 @@ pub fn print_comparison(old: &WasmAnalysis, new: &WasmAnalysis) {
 
     let size_diff = new.file_size as i64 - old.file_size as i64;
     let size_pct = if old.file_size > 0 {
-        (size_diff as f64 / old.file_size as f64 * 100.0)
+        size_diff as f64 / old.file_size as f64 * 100.0
     } else {
         0.0
     };

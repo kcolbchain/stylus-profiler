@@ -211,3 +211,42 @@ pub fn analyze(path: &Path) -> Result<WasmAnalysis> {
         binary_size_bytes: data.len(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_valid_wasm() -> Result<()> {
+        let mut file = NamedTempFile::new()?;
+        // Minimal valid WASM module header
+        file.write_all(b"\x00asm\x01\x00\x00\x00")?;
+        
+        let analysis = analyze(file.path())?;
+        assert_eq!(analysis.binary_size_bytes, 8);
+        assert_eq!(analysis.total_functions(), 0);
+        assert_eq!(analysis.total_code_size(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_empty_binary_handling() {
+        let file = NamedTempFile::new().unwrap();
+        // Empty file
+        
+        let result = analyze(file.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_malformed_wasm_rejection() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"not a wasm file").unwrap();
+        
+        let result = analyze(file.path());
+        assert!(result.is_err());
+    }
+}
