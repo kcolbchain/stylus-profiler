@@ -13,3 +13,21 @@ pub fn estimate_gas(func: &FunctionInfo) -> u64 {
 
     base + locals_overhead + size_overhead
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn estimates_instruction_local_and_size_costs() {
+        let func = FunctionInfo {
+            index: 0,
+            name: Some("hot_path".to_string()),
+            body_size: 250,
+            local_count: 4,
+            instruction_count: 30,
+        };
+
+        assert_eq!(estimate_gas(&func), 30 + (4 * 3) + 25);
+    }
+}

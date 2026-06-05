@@ -219,6 +219,16 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
+    fn minimal_exported_wasm() -> Vec<u8> {
+        vec![
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // header
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00, // type section: () -> ()
+            0x03, 0x02, 0x01, 0x00, // function section: one function
+            0x07, 0x07, 0x01, 0x03, b'r', b'u', b'n', 0x00, 0x00, // export run()
+            0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b, // code section: empty body
+        ]
+    }
+
     #[test]
     fn test_valid_wasm() -> Result<()> {
         let mut file = NamedTempFile::new()?;
@@ -229,6 +239,24 @@ mod tests {
         assert_eq!(analysis.binary_size_bytes, 8);
         assert_eq!(analysis.total_functions(), 0);
         assert_eq!(analysis.total_code_size(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn analyzes_valid_wasm_with_exported_function() -> Result<()> {
+        let mut file = NamedTempFile::new()?;
+        let bytes = minimal_exported_wasm();
+        file.write_all(&bytes)?;
+
+        let analysis = analyze(file.path())?;
+
+        assert_eq!(analysis.file_size, bytes.len());
+        assert_eq!(analysis.binary_size_bytes, bytes.len());
+        assert_eq!(analysis.total_functions(), 1);
+        assert_eq!(analysis.exports, vec!["run"]);
+        assert_eq!(analysis.functions[0].index, 0);
+        assert!(analysis.functions[0].body_size > 0);
+        assert!(analysis.functions[0].instruction_count > 0);
         Ok(())
     }
 

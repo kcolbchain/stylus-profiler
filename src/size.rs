@@ -61,5 +61,27 @@ mod tests {
         assert!(check.uncompressed_ok);
         assert!(!check.compressed_ok);
     }
-}
 
+    #[test]
+    fn flags_contracts_over_compressed_limit() {
+        let oversized = (MAX_COMPRESSED_WASM * 4) + 4;
+
+        let check = check_limits(oversized);
+
+        assert_eq!(check.uncompressed_size, oversized);
+        assert!(check.uncompressed_ok);
+        assert_eq!(check.estimated_compressed, MAX_COMPRESSED_WASM + 1);
+        assert!(!check.compressed_ok);
+        assert_eq!(check.headroom_compressed, 0);
+    }
+
+    #[test]
+    fn reports_headroom_for_small_contracts() {
+        let check = check_limits(1024);
+
+        assert!(check.uncompressed_ok);
+        assert!(check.compressed_ok);
+        assert_eq!(check.headroom_uncompressed, MAX_UNCOMPRESSED_WASM - 1024);
+        assert_eq!(check.headroom_compressed, MAX_COMPRESSED_WASM - 256);
+    }
+}
